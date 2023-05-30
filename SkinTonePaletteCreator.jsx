@@ -1,25 +1,120 @@
-﻿
-/*
-*
-*
-* Version 0.1
+﻿/*
+* Version 0.2
 * Released 2023/05/30
-*
+* https://github.com/midnight-studios/jsx-ps
 */
-var drawColors = [[230, 198, 183], [218, 171, 145], [190, 142, 119], [129, 96, 79]];
-var pathData = [[20, 20], [20, 40], [40, 40], [40, 20]];
+
+var VERSION = '0.2'; // Sep 1, 2013
+var sRGB = [[230, 198, 183], [218, 171, 145], [190, 142, 119], [129, 96, 79]];
+var ProPhotoRGB = [[204, 189, 172], [182, 160, 132], [151, 129, 104], [94, 81, 65]];
+var AdobeRGB = [[221, 197, 182],  [205, 169, 145], [177, 141, 119],[120, 96, 81]];
+
+var titleFillRgb = [0, 0, 0]; // Example stroke color (black)
+var defaultFontColor = [0, 0, 0]; // Example stroke color (black)
 var strokeRgb = [0, 0, 0]; // Example stroke color (black)
 var shapeNames = [];
 var textNames = [];
 var strokeWidthpx = 1;
 var shapeWidth = 448;
 var shapeHeight = 252;
-var groupName = "Skin Tone Collection"
+var titleShapeWidth = 448;
+var titleShapeHeight = 50;
+var groupName = "Skin Tone Palette Collection"
+var TargetColorSpace = 0;
+
 
 /*
 *
 */
-createSkinPalette();
+function ConfigViaDialog()
+{
+    // var f = new File("/i/resource.txt"); f.open("r"); var dialogSpec = f.read();
+    var dialogSpec = "dialog                                                 \
+{                                                                            \
+    text: \"GrumpyDog's Skin Tone Palette Creator (Version "+VERSION+")\",              \
+    frameLocation: [150,100],                                                \
+    alignChildren:'fill',                                                    \
+    spacing: 2,                                                              \
+                                                                             \
+    TitleBox: Group {                                                        \
+       orientation: 'column',                                                \
+       margins: [0,5,0,10],                                                  \
+       spacing: 1,                                                           \
+       alignment: 'center',                                                  \
+       p: Panel {                                                            \
+         margins: [ 30, 8, 30, 8 ],                                          \
+         n: StaticText { text: \"GrumpyDog's Skin Tone Palette Creator (Version "+VERSION+")\" },\
+       },                                                                    \
+       n: Button { text: 'Documentation at http://regex.info/blog/photo-tech/calendar/' },\
+    },                                                                       \
+                                                                             \
+    Palette: Panel {                                                            \                                                                 \
+          Options: Group {                                                     \
+             st: StaticText   { text: 'Palette Color Space:' },                            \
+             et: DropDownList { properties: {items: ['sRGB', 'ProPhoto RGB', 'Adobe RGB']}  }\
+          },                                                                 \
+    },                                                                       \
+                                                                      \
+    Control: Group {                                                         \
+       margins: [0, 15,0, 0 ],                                               \
+       alignment: 'center',                                                  \
+       spacing: '20',                                                        \
+       Create:  Button { text:'Create',  properties:{name:'ok'    } },           \
+       Abort: Button { text:'Abort', properties:{name:'cancel'} },           \
+    }                                                                        \
+}";
+
+    var dialog = new Window(dialogSpec);
+
+    dialog.TitleBox.n.onClick = function() {
+        var X = new File("tmp.html");
+        X.open("w");
+        X.write("<head>\
+<title>GrumpyDog's Skin Tone Palette Creator Script</title>\
+</head>\
+<body onload=\"document.location='https://github.com/midnight-studios/jsx-ps'\">\
+<a href='https://github.com/midnight-studios/jsx-ps'>GrumpyDog's Skin Tone Palette Creator Script</a>\
+</body>\n");
+        X.close();                       
+        X.execute();
+    };
+
+    //
+    // Set the defaults as per the defaults hard-coded at the top of the script
+    //
+    dialog.setDefaults = function() {
+        dialog.Palette.Options.et.selection = dialog.Palette.Options.et.text = TargetColorSpace;
+    };
+
+    dialog.setDefaults();
+    //
+    // Show to the user, and bail if they hit cancel or [x]
+    //
+    if (dialog.show() != 1)
+           return false;
+
+
+    //
+    // Set all the program variables as per the dialog
+    //
+    TargetColorSpace = dialog.Palette.Options.et.selection.index;
+    //
+    // Go Build it.
+    //
+	
+	createSkinPalette(TargetColorSpace);
+    return true;
+}
+
+
+
+
+/*
+*
+*/
+ConfigViaDialog();
+
+
 
 /*
 *
@@ -37,8 +132,41 @@ function removeFromString(inputString, removeString) {
 /*
 *
 */
-function createSkinPalette()
+function createSkinPalette(selectedOption)
 {
+	/*
+		sRGB;
+		ProPhotoRGB;
+		AdobeRGB;
+	*/
+	
+	var fillRgb;
+	var colourSpaceName;
+	switch (selectedOption) {
+		case 0:
+		  // Logic for sRGB palette
+		  drawColors = sRGB;
+		  colourSpaceName = "sRGB";
+		  break;
+		case 1:
+		  // Logic for ProPhoto RGB palette
+		  drawColors = ProPhotoRGB;
+		  colourSpaceName = "Pro Photo RGB";
+		  break;
+		case 2:
+		  // Logic for Adobe RGB palette
+		  drawColors = AdobeRGB;
+		  colourSpaceName = "Adobe RGB";
+		  break;
+		default:
+		  // Logic for sRGB palette
+		  drawColors = sRGB;
+		  colourSpaceName = "sRGB";
+		  break;
+	  }
+	
+	groupName = groupName + " [" + colourSpaceName + "]";
+	
 	for (var i = 0; i < drawColors.length; i++) {
 	  var fillRgb = drawColors[i];
 	  var shapeName = DrawShapeWithStroke(shapeWidth, shapeHeight, fillRgb, strokeRgb, strokeWidthpx);
@@ -48,6 +176,11 @@ function createSkinPalette()
 	positionShapeLayers(shapeNames);
 	moveLayersToGroup(shapeNames);
 	addTextLayers(shapeNames);
+	var shapeName = DrawShapeWithStroke(titleShapeWidth, titleShapeHeight, titleFillRgb, strokeRgb, strokeWidthpx);
+	positionShapeLayer(shapeName, shapeNames[shapeNames.length-1]);
+	currentLayer = getLayerByName(shapeName);
+	moveLayerToGroup(currentLayer, groupName);
+	createTextLayerWithContent(colourSpaceName, currentLayer, [255,255,255]);
 	convertGroupToSmartObject(groupName);
 }
 /*
@@ -94,7 +227,7 @@ function alignTextLayerToLayer(textLayer, targetLayer) {
 /*
 *
 */
-function createTextLayerWithContent(textContent, targetLayer) {
+function createTextLayerWithContent(textContent, targetLayer, fontColor) {
   var doc = app.activeDocument;
 	  
 	
@@ -131,6 +264,20 @@ function createTextLayerWithContent(textContent, targetLayer) {
   textLayer.name = textLayerName;
   // Set the text alignment to center
   textItem.justification = Justification.CENTER;
+	
+	  // Set the font color
+  var color = new SolidColor();
+  if (fontColor) {
+    color.rgb.red = fontColor[0];
+    color.rgb.green = fontColor[1];
+    color.rgb.blue = fontColor[2];
+  } else {
+    // Default font color: white
+    color.rgb.red = defaultFontColor[0];
+    color.rgb.green = defaultFontColor[1];
+    color.rgb.blue = defaultFontColor[2];
+  }
+  textItem.color = color;
 	
   moveLayerToGroup(textLayer, groupName)
 	
@@ -604,6 +751,30 @@ function convertPixelsToUnits(layer, valueInPixels) {
   app.preferences.rulerUnits = currentRulerUnits;
   app.preferences.typeUnits = currentTypeUnits;
   return valueInUnits;
+}
+/*
+*
+*/
+function positionShapeLayer(currentLayerName, previousLayerName) {
+  var previousLayer = getLayerByName(previousLayerName);
+  var currentLayer = getLayerByName(currentLayerName);
+  var currentBounds = currentLayer.bounds;
+  var deltaX, deltaY;
+  
+  if (previousLayer) {
+    var previousBounds = previousLayer.bounds;
+    var stroke = getLayerStrokeWidthByObject(previousLayer);
+    var layerWidth = currentBounds[2] - currentBounds[0];
+    var layerHeight = currentBounds[3] - currentBounds[1];
+
+    deltaX = 0 - currentBounds[0] - previousBounds[0];
+    deltaY = 0 - currentBounds[1] - previousBounds[1] - (previousBounds[3] - previousBounds[1]) + convertPixelsToUnits(previousLayer, stroke);
+  } else {
+    deltaX = 0 - currentBounds[0];
+    deltaY = 0 - currentBounds[1];
+  }
+
+  currentLayer.translate(-deltaX, -deltaY);
 }
 /*
 *
