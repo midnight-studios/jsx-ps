@@ -1,25 +1,218 @@
-﻿var drawColors = [[0, 54, 255], [0, 200, 0], [190, 142, 119]];
-var drawColors = [[230, 198, 183], [218, 171, 145], [190, 142, 119]];
+﻿/*
+*
+*
+* Version 0.1
+* Released 2023/05/30
+*
+*/
+var drawColors = [[230, 198, 183], [218, 171, 145], [190, 142, 119], [129, 96, 79]];
 var pathData = [[20, 20], [20, 40], [40, 40], [40, 20]];
 var strokeRgb = [0, 0, 0]; // Example stroke color (black)
 var shapeNames = [];
-var strokeWidthpx = 10;
-var shapeWidth = 100;
-var shapeHeight = 200;
+var textNames = [];
+var strokeWidthpx = 1;
+var shapeWidth = 448;
+var shapeHeight = 252;
+var groupName = "Skin Tone Collection"
 
-for (var i = 0; i < drawColors.length; i++) {
-  var fillRgb = drawColors[i];
-  var shapeName = DrawShapeWithStroke(shapeWidth, shapeHeight, fillRgb, strokeRgb, strokeWidthpx);
-  shapeNames.push(shapeName);
-}
+/*
+*
+*/
+createSkinPalette();
 
-// Move the shape layers
-positionShapeLayers(shapeNames);
-
-// Print the list of layer names
+/*
+*
+*/
 var message = "Shape layer names created:\n";
 for (var j = 0; j < shapeNames.length; j++) {
   message += "- " + shapeNames[j] + "\n";
+}
+/*
+*
+*/
+function createSkinPalette()
+{
+	for (var i = 0; i < drawColors.length; i++) {
+	  var fillRgb = drawColors[i];
+	  var shapeName = DrawShapeWithStroke(shapeWidth, shapeHeight, fillRgb, strokeRgb, strokeWidthpx);
+	  shapeNames.push(shapeName);
+	}
+	// Move the shape layers
+	positionShapeLayers(shapeNames);
+	moveLayersToGroup(shapeNames);
+	addTextLayers(shapeNames);
+	convertGroupToSmartObject(groupName);
+}
+/*
+*
+*/
+function convertGroupToSmartObject(groupName) {
+  var doc = app.activeDocument;
+
+  // Find the group layer
+  var group = doc.layerSets.getByName(groupName);
+  if (!group) {
+    alert("Group not found: " + groupName);
+    return null;
+  }
+
+  // Select the group
+  doc.activeLayer = group;
+
+  // Convert the group to a smart object
+  var idnewPlacedLayer = stringIDToTypeID("newPlacedLayer");
+  executeAction(idnewPlacedLayer, undefined, DialogModes.NO);
+
+  // Get the newly created smart object layer
+  var smartObject = doc.activeLayer;
+  smartObject.name = groupName + " Smart";
+
+  return smartObject;
+}
+/*
+*
+*/
+function alignTextLayerToLayer(textLayer, targetLayer) {
+  var doc = app.activeDocument;
+	if (targetLayer === null) return;
+	
+  // Select the text layer and target layer
+  doc.activeLayer = textLayer;
+  doc.activeLayer.selected = true;
+  targetLayer.selected = true;
+
+  // Align the text layer to the target layer
+  //app.doAction(charIDToTypeID("Algn"), "AlignDistributeSet");
+}
+/*
+*
+*/
+function createTextLayerWithContent(textContent, targetLayer) {
+  var doc = app.activeDocument;
+	  
+	
+	try {  
+	  var targetLayerName = targetLayer.name
+  } catch (e) {
+	  alert(targetLayer.name);
+    // Layer not found
+    return null;
+  }	
+	
+  // Create a new text layer
+  var textLayer = doc.artLayers.add();
+  textLayer.kind = LayerKind.TEXT;
+  // Set the text content, font, and size
+  var textItem = textLayer.textItem;
+  textItem.contents = textContent;
+  textItem.font = "Arial Black";
+  textItem.size = 8; // in pt
+  textItem.fauxBold = true;
+	
+	
+  // Attempt to set the font to "Arial Black"
+  var fonts = app.fonts;
+  for (var i = 0; i < fonts.length; i++) {
+    if (fonts[i].postScriptName === "Arial-Black") {
+      textItem.font = fonts[i].postScriptName;
+      break;
+    }
+  }	
+  // Rename the text layer
+  var textLayerName = getUniqueLayerName("TEXT " + textContent); 
+  textLayer.name = textLayerName;
+  // Set the text alignment to center
+  textItem.justification = Justification.CENTER;
+	
+  moveLayerToGroup(textLayer, groupName)
+	
+	try {  
+	  // Move the text layer before the target layer
+	  textLayer.move(targetLayer, ElementPlacement.PLACEBEFORE);
+  } catch (e) {
+    // Layer not found
+	  alert("Move the text layer before the target layer Failed");
+    return null;
+  }
+	
+	try {  
+	  // Move the text layer after the target layer
+	  moveTextLayerAfterLayerInGroup(textLayerName, targetLayerName, groupName);
+  } catch (e) {
+    // Layer not found
+	  alert("Move the text layer after the target layer Failed");
+    return null;
+  }	
+	try {  
+	  // Align the text layer to the layer above it
+	  alignLayerToReference(textLayerName, targetLayerName);
+  } catch (e) {
+	  alert("Align the text layer to the layer Failed");
+    // Layer not found
+    return null;
+  }	
+
+  //alignTextLayerToLayer(textLayer, targetLayer)
+	
+  textNames.push(textLayerName);
+  return textLayer;
+}
+/*
+*
+*/
+function alignLayerToReference(targetLayerName, referenceLayerName) {
+  var doc = app.activeDocument;
+  
+  // Get the target layer and reference layer
+  var targetLayer = getLayerByName(targetLayerName);
+  var referenceLayer = getLayerByName(referenceLayerName);
+  
+  // Calculate the position of the reference layer
+  var refBounds = referenceLayer.bounds;
+  var refX = refBounds[0].value;
+  var refY = refBounds[1].value;
+  var refWidth = refBounds[2].value - refBounds[0].value;
+  var refHeight = refBounds[3].value - refBounds[1].value;
+  
+  // Adjust the position of the target layer
+  var targetBounds = targetLayer.bounds;
+  var targetWidth = targetBounds[2].value - targetBounds[0].value;
+  var targetHeight = targetBounds[3].value - targetBounds[1].value;
+  var targetX = refX + (refWidth - targetWidth) / 2;
+  var targetY = refY + (refHeight - targetHeight) / 2;
+
+  targetLayer.translate(targetX - targetBounds[0].value, targetY - targetBounds[1].value);
+
+}
+/*
+*
+*/
+function moveTextLayerAfterLayerInGroup(textLayerName, targetLayerName, groupName) {
+  var doc = app.activeDocument;
+
+  // Find the group
+  var group = doc.layerSets.getByName(groupName);
+  if (!group) {
+    alert("Group not found: " + groupName);
+    return;
+  }
+
+  // Find the text layer within the group
+  var textLayer = getLayerByName(textLayerName);
+  if (!textLayer || textLayer.kind !== LayerKind.TEXT) {
+    alert("Text layer not found: " + textLayerName);
+    return;
+  }
+
+  // Find the target layer within the group
+  var targetLayer = getLayerByName(targetLayerName);
+  if (!targetLayer) {
+    alert("Target layer not found: " + targetLayerName);
+    return;
+  }
+
+  // Move the text layer after the target layer
+  textLayer.move(targetLayer, ElementPlacement.PLACEBEFORE);
 }
 /*
 *
@@ -154,6 +347,19 @@ function DrawShape(rgb, pathCoordinates) {
 /*
 *
 */
+function moveLayersToGroup(shapeNames) {
+  createGroup(groupName)
+  for (var j = 0; j < shapeNames.length; j++) {
+    var currentLayer = getLayerByName(shapeNames[j]);
+	if (currentLayer !== null ){
+	  moveLayerToGroup(currentLayer, groupName);		  
+		  
+	  }
+  }
+}
+/*
+*
+*/
 function findGroupByName(groupName) {
   var doc = app.activeDocument;
   var group = null;
@@ -169,13 +375,9 @@ function findGroupByName(groupName) {
   return group;
 }
 /*
-*
+* 
 */
-function moveLayerToGroup(layerName, groupName) {
-  var doc = app.activeDocument;
-
-  // Find the layer by name
-  var layer = doc.layers.getByName(layerName);
+function moveLayerToGroup(layer, groupName) {
   var foundGroup = findGroupByName(groupName)
   // Move the layer to the group
   layer.move(foundGroup, ElementPlacement.INSIDE);
@@ -195,6 +397,34 @@ function createGroup(groupName) {
   return newGroupName;
 }
 /*
+*Function to generate a unique group name
+*/
+function getUniqueGroupName(baseName) {
+  var doc = app.activeDocument;
+  var name = baseName;
+  var counter = 1;
+  var layerSets = doc.layerSets;
+  var numLayerSets = layerSets.length;
+  while (isGroupNameTaken(name, layerSets)) {
+    name = baseName + " " + counter;
+    counter++;
+  }
+
+  return name;
+}
+/*
+*
+*/
+function isGroupNameTaken(name, layerSets) {
+  for (var i = 0; i < layerSets.length; i++) {
+	  var currentName = layerSets[i].name;
+    if (layerSets[i].name === name) {
+      return true;
+    }
+  }
+  return false;
+}
+/*
 *
 */
 function getUniqueShapeName(name) {
@@ -207,24 +437,9 @@ function getUniqueShapeName(name) {
   return uniqueName;
 }
 /*
-*Function to generate a unique group name
-*/
-function getUniqueGroupName(baseName) {
-  var doc = app.activeDocument;
-  var name = baseName;
-  var counter = 1;
-
-  while (doc.layerSets.getByName(name) !== undefined) {
-    name = baseName + " " + counter;
-    counter++;
-  }
-
-  return name;
-}
-/*
 *
 */
-function getUniqueShapeName(name) {
+function getUniqueLayerName(name) {
   var uniqueName = name;
   var counter = 1;
   while (isLayerNameExists(uniqueName)) {
@@ -250,13 +465,29 @@ function isLayerNameExists(name) {
 */
 function getLayerByName(layerName) {
   var doc = app.activeDocument;
-  try {
-    var layer = doc.layers.getByName(layerName);
-    return layer;
-  } catch (e) {
-    // Layer not found
-    return null;
+  var layer = findLayerByNameRecursively(layerName, doc);
+
+  return layer;
+}
+/*
+*
+*/
+function findLayerByNameRecursively(layerName, parent) {
+  var layers = parent.layers;
+  for (var i = 0; i < layers.length; i++) {
+    var currentLayer = layers[i];
+    if (currentLayer.typename === "LayerSet") {
+      // Recursive call for nested groups
+      var nestedLayer = findLayerByNameRecursively(layerName, currentLayer);
+      if (nestedLayer !== null) {
+        return nestedLayer;
+      }
+    } else if (currentLayer.name === layerName) {
+      return currentLayer;
+    }
   }
+  // Layer not found
+  return null;
 }
 /*
 *
@@ -393,454 +624,14 @@ function positionShapeLayers(shapeNames) {
 /*
 *
 */
-function moveShapeLayers(shapeNames) {
+function addTextLayers(shapeNames) {
+	var currentLayer;
   for (var j = 0; j < shapeNames.length; j++) {
-    var previousLayer = getLayerByName(shapeNames[j-1]);
-    var currentLayer = getLayerByName(shapeNames[j]);
-    var currentBounds = currentLayer.bounds;
-    var deltaX, deltaY;
-
-    if (previousLayer) {
-      var previousBounds = previousLayer.bounds;
-      var layerHeight = currentBounds[3].value;
-      var layerWidth = currentBounds[2].value;
-      deltaX = 0 - currentBounds[0] - previousBounds[0];
-      deltaY = 0 - currentBounds[1] - previousBounds[1] - (layerWidth / 2);
-    } else {
-      deltaX = 0 - currentBounds[0];
-      deltaY = 0 - currentBounds[1];
-    }
-	  currentLayer.translate(-deltaX, -deltaY);
+	  var shapeName = shapeNames[j];
+    	currentLayer = getLayerByName(shapeName);
+	  if (currentLayer !== null ){
+	  createTextLayerWithContent(shapeName, currentLayer);
+	  }
+	  currentLayer = null;
   }
 }
-
-/*
-
-
-
-var doc 					= 	app.activeDocument;
-var startRulerUnits			= 	app.preferences.rulerUnits;
-var startTypeUnits			= 	app.preferences.typeUnits;
-								app.preferences.rulerUnits = Units.MM;
-								app.preferences.typeUnits = TypeUnits.MM;
-
-
-
-
-
-var sizeInCm = 1;
-var newLayerName = "Skin Tone A";
-var rgbValues = [230,198,183]; // RGB(255, 255, 255) = white
-
-function createSolidColor(newLayerName, rgb)
-{
-    var fillDesc			= new ActionDescriptor();
-    var desc 				= new ActionDescriptor();
-	var ref 				= new ActionReference();
-	var idType 				= charIDToTypeID( "Type" );
-	var idClr 				= charIDToTypeID( "Clr " );
-	var idRd 				= charIDToTypeID( "Rd  " );
-	var idGrn 				= charIDToTypeID( "Grn " );
-	var idBl 				= charIDToTypeID( "Bl  " );
-	var idMk 				= charIDToTypeID( "Mk  " );
-	var idRGBC 				= charIDToTypeID( "RGBC" );
-    var idnull 				= charIDToTypeID( "null" );
-	var idUsng 				= charIDToTypeID( "Usng" );
-	var idsolidColorLayer 	= stringIDToTypeID( "solidColorLayer" );
-	var idcontentLayer 		= stringIDToTypeID( "contentLayer" );
-	fillDesc.putObject(charIDToTypeID("Clr "), charIDToTypeID("RGBC"), colorDesc);
-	ref.putClass( idcontentLayer );
-	desc.putReference( idnull, ref );
-	var item 			= new ActionDescriptor();
-	if (newLayerName)
-	{
-		item.putString( charIDToTypeID( "Nm  " ), "" + newLayerName + "" );
-	}
-	item.putObject( idType, idsolidColorLayer, fillDesc );
-	desc.putObject( charIDToTypeID( "Usng" ), stringIDToTypeID( "contentLayer" ), item );
-	executeAction( idMk, desc, DialogModes.NO );
-}
-
-
-function DrawShape(newLayerNamergb, pathCoordinates) {
-    
-    var doc = app.activeDocument;
-    var y = pathCoordinates.length;
-    var i = 0;
-    
-    var lineArray = [];
-    for (i = 0; i < y; i++) {
-        lineArray[i] = new PathPointInfo;
-        lineArray[i].kind = PointKind.CORNERPOINT;
-        lineArray[i].anchor = arguments[i];
-        lineArray[i].leftDirection = lineArray[i].anchor;
-        lineArray[i].rightDirection = lineArray[i].anchor;
-    }
-
-    var lineSubPathArray = new SubPathInfo();
-    lineSubPathArray.closed = true;
-    lineSubPathArray.operation = ShapeOperation.SHAPEADD;
-    lineSubPathArray.entireSubPath = lineArray;
-    var myPathItem = doc.pathItems.add("myPath", [lineSubPathArray]);
-    
-	var rgb = [230,198,183]; // RGB(255, 255, 255) = white
-
-	var color = new RGBColor();
-	color.red = rgb[0];
-	color.green = rgb[1];
-	color.blue = rgb[2];	
-	
-	
-	
-	
-    var desc88 = new ActionDescriptor();
-    var ref60 = new ActionReference();
-    ref60.putClass(stringIDToTypeID("contentLayer"));
-    desc88.putReference(charIDToTypeID("null"), ref60);
-    var desc89 = new ActionDescriptor();
-    var desc90 = new ActionDescriptor();
-    var desc91 = new ActionDescriptor();
-	var colorDesc 			= new ActionDescriptor();
-	colorDesc.putDouble(charIDToTypeID("Rd  "), color.red);
-	colorDesc.putDouble(charIDToTypeID("Grn "), color.green);
-	colorDesc.putDouble(charIDToTypeID("Bl  "), color.blue);
-    var id481 = charIDToTypeID("RGBC");
-    desc90.putObject(charIDToTypeID("Clr "), id481, colorDesc);
-    desc89.putObject(charIDToTypeID("Type"), stringIDToTypeID("solidColorLayer"), desc90);
-	if (newLayerName)
-	{
-		desc89.putString( charIDToTypeID( "Nm  " ), "" + newLayerName + "" );
-	}
-    desc88.putObject(charIDToTypeID("Usng"), stringIDToTypeID("contentLayer"), desc89);
-    executeAction(charIDToTypeID("Mk  "), desc88, DialogModes.NO);
-    
-    myPathItem.remove();
-}
-
-// X,Y
-// Put the coordinates in clockwise order
-DrawShape([100, 100], [100, 200], [200, 200], [200, 100]);
-DrawShape([512, 128], [600, 256], [684, 320], [600, 386], [686, 514], [512, 450],[340,512],[428,386],[340,320],[428,256]);
-
-
-
- //make a new document
-function createArtLayer(newLayerName, rgbValues)
-{
-    createSolidColor(newLayerName, rgbValues);
-	convertSolidFillToShapeLayer(newLayerName)
-    //var fillThis = doc.artLayers.getByName(newLayerName)
-    //doc.activeLayer = fillThis
-    //var colorValue = colorValue;
-    //setColor(colorValue,newLayerName);
-    //selectPath() ;
-    //makePath();
-    //convertPath();
-}
-
-function createSolidColor(newLayerName, rgb)
-{
-	var color 				= new RGBColor();
-	color.red = rgb[0];
-	color.green = rgb[1];
-	color.blue = rgb[2];
-    var fillDesc			= new ActionDescriptor();
-	var colorDesc 			= new ActionDescriptor();
-    var desc 				= new ActionDescriptor();
-	var ref 				= new ActionReference();
-	var item 			= new ActionDescriptor();
-	var idType 				= charIDToTypeID( "Type" );
-	var idClr 				= charIDToTypeID( "Clr " );
-	var idRd 				= charIDToTypeID( "Rd  " );
-	var idGrn 				= charIDToTypeID( "Grn " );
-	var idBl 				= charIDToTypeID( "Bl  " );
-	var idMk 				= charIDToTypeID( "Mk  " );
-	var idRGBC 				= charIDToTypeID( "RGBC" );
-    var idnull 				= charIDToTypeID( "null" );
-	var idUsng 				= charIDToTypeID( "Usng" );
-	var idsolidColorLayer 	= stringIDToTypeID( "solidColorLayer" );
-	var idcontentLayer 		= stringIDToTypeID( "contentLayer" );
-	colorDesc.putDouble(charIDToTypeID("Rd  "), color.red);
-	colorDesc.putDouble(charIDToTypeID("Grn "), color.green);
-	colorDesc.putDouble(charIDToTypeID("Bl  "), color.blue);
-	fillDesc.putObject(charIDToTypeID("Clr "), charIDToTypeID("RGBC"), colorDesc);
-	ref.putClass( idcontentLayer );
-	desc.putReference( idnull, ref );
-	if (newLayerName)
-	{
-		item.putString( charIDToTypeID( "Nm  " ), "" + newLayerName + "" );
-	}
-	item.putObject( idType, idsolidColorLayer, fillDesc );
-	desc.putObject( idUsng, idcontentLayer, item );
-	executeAction( idMk, desc, DialogModes.NO );
-}
-
-
-
- //make a new document
-function createArtLayerOLD(newLayerName, colorValue)
-{
-    createSolidColor(newLayerName);
-    //var fillThis = doc.artLayers.getByName(newLayerName)
-    //doc.activeLayer = fillThis
-    //var colorValue = colorValue;
-    //setColor(colorValue,newLayerName);
-    //selectPath() ;
-    //makePath();
-    //convertPath();
-}
- 
-function createSolidColorOLD(newLayerName)
-{
-    var desc 				= new ActionDescriptor();
-	var ref 				= new ActionReference();
-	var desc102 			= new ActionDescriptor();
-	var desc103 			= new ActionDescriptor();
-	var desc104 			= new ActionDescriptor();
-	var idType 				= charIDToTypeID( "Type" );
-	var idClr 				= charIDToTypeID( "Clr " );
-	var idRd 				= charIDToTypeID( "Rd  " );
-	var idGrn 				= charIDToTypeID( "Grn " );
-	var idBl 				= charIDToTypeID( "Bl  " );
-	var idMk 				= charIDToTypeID( "Mk  " );
-	var idRGBC 				= charIDToTypeID( "RGBC" );
-    var idnull 				= charIDToTypeID( "null" );
-	var idUsng 				= charIDToTypeID( "Usng" );
-	var idsolidColorLayer 	= stringIDToTypeID( "solidColorLayer" );
-	var idcontentLayer 		= stringIDToTypeID( "contentLayer" );
-	var idcontentLayer 		= stringIDToTypeID( "contentLayer" );
-	desc104.putDouble( idRd, 230 );
-	desc104.putDouble( idGrn, 198 );
-	desc104.putDouble( idBl, 183 );
-	ref.putClass( idcontentLayer );
-	desc.putReference( idnull, ref );
-	if (newLayerName)
-	{
-		var idNm = charIDToTypeID( "Nm  " );
-		desc102.putString( idNm, "" + newLayerName + "" );
-	}
-	desc103.putObject( idClr, idRGBC, desc104 );
-	desc102.putObject( idType, idsolidColorLayer, desc103 );
-	desc.putObject( idUsng, idcontentLayer, desc102 );
-	executeAction( idMk, desc, DialogModes.NO );
-}
-
-function setColor(colorValue,newLayerName)
-{
-    var sColor =  new SolidColor;  
-    sColor.rgb.hexValue = colorValue;  
-    app.activeDocument.activeLayer = app.activeDocument.layers.getByName(newLayerName);  
-    setColorOfFillLayer( sColor );
-}
-function setColorOfFillLayer( sColor ) 
-{     
-    var desc = new ActionDescriptor();  
-    var ref = new ActionReference();  
-     ref.putEnumerated( stringIDToTypeID('contentLayer'), charIDToTypeID('Ordn'), charIDToTypeID('Trgt') );  
-    desc.putReference( charIDToTypeID('null'), ref );  
-	var fillDesc = new ActionDescriptor();  
-	var colorDesc = new ActionDescriptor();  
-	colorDesc.putDouble( charIDToTypeID('Rd  '), sColor.rgb.red );  
-	colorDesc.putDouble( charIDToTypeID('Grn '), sColor.rgb.green );  
-	colorDesc.putDouble( charIDToTypeID('Bl  '), sColor.rgb.blue );  
-	fillDesc.putObject( charIDToTypeID('Clr '), charIDToTypeID('RGBC'), colorDesc );  
-    desc.putObject( charIDToTypeID('T   '), stringIDToTypeID('solidColorLayer'), fillDesc );  
-    executeAction( charIDToTypeID('setd'), desc, DialogModes.NO );  
-}
-function selectPath() {
-// =======================================================
-	var idsetd = charIDToTypeID( "setd" );
-	var desc81 = new ActionDescriptor();
-	var idnull = charIDToTypeID( "null" );
-	var ref26 = new ActionReference();
-	var idChnl = charIDToTypeID( "Chnl" );
-	var idfsel = charIDToTypeID( "fsel" );
-	ref26.putProperty( idChnl, idfsel );
-	desc81.putReference( idnull, ref26 );
-	var idT = charIDToTypeID( "T   " );
-	var ref27 = new ActionReference();
-	var idChnl = charIDToTypeID( "Chnl" );
-	var idChnl = charIDToTypeID( "Chnl" );
-	var idTrsp = charIDToTypeID( "Trsp" );
-	ref27.putEnumerated( idChnl, idChnl, idTrsp );
-	desc81.putReference( idT, ref27 );
-	executeAction( idsetd, desc81, DialogModes.NO );
-}
-function makePath() { 
-// =======================================================
-	var idMk = charIDToTypeID( "Mk  " );
-	var desc82 = new ActionDescriptor();
-	var idnull = charIDToTypeID( "null" );
-	var ref28 = new ActionReference();
-	var idPath = charIDToTypeID( "Path" );
-	ref28.putClass( idPath );
-	desc82.putReference( idnull, ref28 );
-	var idFrom = charIDToTypeID( "From" );
-	var ref29 = new ActionReference();
-	var idcsel = charIDToTypeID( "csel" );
-	var idfsel = charIDToTypeID( "fsel" );
-	ref29.putProperty( idcsel, idfsel );
-	desc82.putReference( idFrom, ref29 );
-	var idTlrn = charIDToTypeID( "Tlrn" );
-	var idPxl = charIDToTypeID( "#Pxl" );
-	desc82.putUnitDouble( idTlrn, idPxl, 2.000000 );
-	executeAction( idMk, desc82, DialogModes.NO );
-}
-
-function convertPath() {
-// =======================================================
-var idMk = charIDToTypeID( "Mk  " );
-    var desc83 = new ActionDescriptor();
-    var idnull = charIDToTypeID( "null" );
-        var ref30 = new ActionReference();
-        var idPath = charIDToTypeID( "Path" );
-        ref30.putClass( idPath );
-    desc83.putReference( idnull, ref30 );
-    var idAt = charIDToTypeID( "At  " );
-        var ref31 = new ActionReference();
-        var idPath = charIDToTypeID( "Path" );
-        var idPath = charIDToTypeID( "Path" );
-        var idvectorMask = stringIDToTypeID( "vectorMask" );
-        ref31.putEnumerated( idPath, idPath, idvectorMask );
-    desc83.putReference( idAt, ref31 );
-    var idUsng = charIDToTypeID( "Usng" );
-        var ref32 = new ActionReference();
-        var idPath = charIDToTypeID( "Path" );
-        var idOrdn = charIDToTypeID( "Ordn" );
-        var idTrgt = charIDToTypeID( "Trgt" );
-        ref32.putEnumerated( idPath, idOrdn, idTrgt );
-    desc83.putReference( idUsng, ref32 );
-executeAction( idMk, desc83, DialogModes.NO );
-}
-
-
-
-var originalHeight = 900;
-var originalWidth = 600;
-var newHeight;
-var newWidth =1500;
-var calculateHeight = (originalHeight / originalWidth * newWidth);
-var calculateWidth = (originalHeight / originalWidth * newHeight);
-
-
-//Aspect ratio is calculated by deviding the width by the height
-
-
-var calculate = originalHeight / originalWidth //getRatio(originalHeight,originalWidth,newWidth);
-// 
-
-var x1v, y1v, ratio;
-x1v = 9;
-y1v = 6;
-
-                // display new ratio
-        ratio = reduceRatio(x1v, y1v);
-        
-        
-        
-        alert(newWidth*calculate);
-
-
-function getRatio(a,b,i){
-   return ((a/b)*i);
-    }
-    
-    function reduceRatio(numerator, denominator) {
-        var gcd, temp, divisor;
-                // from: http://pages.pacificcoast.net/~cazelais/euclid.html
-        gcd = function (a, b) { 
-            if (b === 0) return a;
-            return gcd(b, a % b);
-        }
-                // take care of some simple cases
-        if (!isInteger(numerator) || !isInteger(denominator)) return '? : ?';
-        if (numerator === denominator) return '1 : 1';
-                // make sure numerator is always the larger number
-        if (+numerator < +denominator) {
-            temp        = numerator;
-            numerator   = denominator;
-            denominator = temp;
-        }
-                divisor = gcd(+numerator, +denominator);
-                return 'undefined' === typeof temp ? (numerator / divisor) + ' : ' + (denominator / divisor) : (denominator / divisor) + ' : ' + (numerator / divisor);
-    }
-
-    function isInteger(value) {
-        return /^[0-9]+$/.test(value);
-    };
-
-var doc = app.activeDocument;
-
-var rightPage =  app.activeDocument.layers["Album Frame Reference"].layers["Right Page"]
-var leftQuad =  app.activeDocument.layers["Album Frame Reference"].layers["Right Page"].layers["Page Quadrants"].layers["Top Left"]
-var rightQuad =  rightPage.layers["Page Quadrants"].layers["Top Left"]
-
-
-var selectItem;
-
-selectItem =rightQuad;
-//app.activeDocument.activeLayer = rightQuad;
-
-
-
-selectVectorMask(selectItem.name);
-
-//var iStatus = false;
-
-
-
-
-
-
-
- function selectVectorMask(layerName)
-{
-   
-    
-// =======================================================
-    var idsetd = charIDToTypeID( "setd" );
-        var desc = new ActionDescriptor();
-        var idnull = charIDToTypeID( "null" );
-            var ref = new ActionReference();
-            var idChnl = charIDToTypeID( "Chnl" );
-            var idfsel = charIDToTypeID( "fsel" );
-            ref.putProperty( idChnl, idfsel );
-        desc.putReference( idnull, ref );
-        var idT = charIDToTypeID( "T   " );
-            var ref = new ActionReference();
-            var idPath = charIDToTypeID( "Path" );
-            var idPath = charIDToTypeID( "Path" );
-            var idvectorMask = stringIDToTypeID( "vectorMask" );
-            ref.putEnumerated( idPath, idPath, idvectorMask );
-            var idLyr = charIDToTypeID( "Lyr " );
-            ref.putName( idLyr, layerName);
-        desc.putReference( idT, ref );
-        var idVrsn = charIDToTypeID( "Vrsn" );
-        desc.putInteger( idVrsn, 1 );
-        var idvectorMaskParams = stringIDToTypeID( "vectorMaskParams" );
-        desc.putBoolean( idvectorMaskParams, true );
-    
-            try{
-            executeAction( idsetd, desc, DialogModes.NO );
-            }
-        catch(e)
-        {
-            alert('no selection');
-            };
-        
-}
-
-
-
-
-
-alert(layer.active);
-
-alert(iStatus);
-
-
-
-move the layers into the layerset  
-
-
-     */
