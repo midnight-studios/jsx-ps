@@ -1,4 +1,5 @@
-﻿/*
+﻿
+/*
 *
 *
 * Version 0.1
@@ -26,6 +27,12 @@ createSkinPalette();
 var message = "Shape layer names created:\n";
 for (var j = 0; j < shapeNames.length; j++) {
   message += "- " + shapeNames[j] + "\n";
+}
+/*
+*
+*/
+function removeFromString(inputString, removeString) {
+	return inputString.replace(/^Color\s*/,"").replace(/[\[\]']+/g,'');
 }
 /*
 *
@@ -104,9 +111,10 @@ function createTextLayerWithContent(textContent, targetLayer) {
   textLayer.kind = LayerKind.TEXT;
   // Set the text content, font, and size
   var textItem = textLayer.textItem;
-  textItem.contents = textContent;
+  var newtextContent = removeFromString(textContent, "Color");
+  textItem.contents  = newtextContent;
   textItem.font = "Arial Black";
-  textItem.size = 8; // in pt
+  textItem.size = 12; // in pt
   textItem.fauxBold = true;
 	
 	
