@@ -45,7 +45,7 @@ function ConfigViaDialog()
          margins: [ 30, 8, 30, 8 ],                                          \
          n: StaticText { text: \"GrumpyDog's Skin Tone Palette Creator (Version "+VERSION+")\" },\
        },                                                                    \
-       n: Button { text: 'Documentation at http://regex.info/blog/photo-tech/calendar/' },\
+       n: Button { text: 'Documentation at https://github.com/midnight-studios/jsx-ps/' },\
     },                                                                       \
                                                                              \
     Palette: Panel {                                                            \                                                                 \
